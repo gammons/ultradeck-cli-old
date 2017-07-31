@@ -2,50 +2,74 @@ package main
 
 import (
 	"flag"
-	"html/template"
 	"log"
 	"net/http"
 	"strings"
 
+	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
 )
 
 var addr = flag.String("addr", "localhost:8080", "http service address")
+var redisAddr = flag.String("redisAddr", "localhost:6379", "redis address")
+var ultradeckBackendAddr = flag.String("ultradeckBackendAddr", "localhost:3000", "ultradeck backend address")
 
-var upgrader = websocket.Upgrader{}
-
-func echo(w http.ResponseWriter, r *http.Request) {
-	c, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Print("upgrade:", err)
-		return
-	}
-	defer c.Close()
-	for {
-		mt, message, err := c.ReadMessage()
-		if err != nil {
-			log.Println("read:", err)
-			break
-		}
-		log.Printf("recv: %s", message)
-		err = c.WriteMessage(mt, message)
-		if err != nil {
-			log.Println("write:", err)
-			break
-		}
-	}
+// Server is server stuff
+type Server struct {
+	Connections map[string]*websocket.Conn
+	RedisConn   *redis.Client
 }
 
-func msg(w http.ResponseWriter, r *http.Request) {
-	log.Println("Incoming message")
-	c, err := upgrader.Upgrade(w, r, nil)
+/*
+
+rails only has a connection to redis.  goals is not to have rails need websockets.
+
+1. websocket server shares redis with rails
+2. auth request will call UD backend auth with the intermediate key from the client
+3. rails stores intermediate key in session
+4. oauth is performed
+5. on oauth callback, rails pushes a message for the intermediate key, and gives word of the good news, sending back access token
+6. websocket server forwards access token to client and closes connection
+7. websocket server also stores connection in a set for future use
+7. client writes ~/.config/ultradeck.json
+
+*/
+
+func main() {
+	log.SetFlags(0)
+
+	server := &Server{}
+	server.RedisConn = redis.NewClient(&redis.Options{
+		Addr:     *redisAddr,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	http.HandleFunc("/", server.HandleNewRequest)
+	log.Println("Listening ln localhost:8080")
+	log.Fatal(http.ListenAndServe(*addr, nil))
+}
+
+func (s *Server) HandleNewRequest(w http.ResponseWriter, r *http.Request) {
+	s.serve(w, r)
+}
+
+func (s *Server) upgradeConnection(w http.ResponseWriter, r *http.Request) *websocket.Conn {
+	var upgrader = websocket.Upgrader{}
+	Conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
-		return
+		return nil
 	}
-	defer c.Close()
+	defer Conn.Close()
+
+	return Conn
+}
+
+func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
+	conn := s.upgradeConnection(w, r)
 	for {
-		mt, message, err := c.ReadMessage()
+		_, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("Read error: ", err)
 			break
@@ -53,95 +77,20 @@ func msg(w http.ResponseWriter, r *http.Request) {
 		log.Printf("recv: '%s'", message)
 
 		splitted := strings.Fields(string(message))
-		if splitted[0] == "AUTH" {
-			err = c.WriteMessage(mt, []byte("OK dingleberries"))
-			if err != nil {
-				log.Println("Write error: ", err)
-			}
+		switch splitted[0] {
+		case "AUTH":
+			s.performAuth(splitted)
 		}
 	}
 }
 
-func home(w http.ResponseWriter, r *http.Request) {
-	homeTemplate.Execute(w, "ws://"+r.Host+"/echo")
+func (s *Server) performAuth(message []string) {
+	//s.Conn.WriteMessage(websocket.TextMessage)
+
 }
 
-func main() {
-	log.SetFlags(0)
-	http.HandleFunc("/", msg)
-	http.HandleFunc("/home", home)
-	log.Println("Listening ln localhost:8080")
-	log.Fatal(http.ListenAndServe(*addr, nil))
-}
-
-var homeTemplate = template.Must(template.New("").Parse(`
-<!DOCTYPE html>
-<head>
-<meta charset="utf-8">
-<script>
-window.addEventListener("load", function(evt) {
-    var output = document.getElementById("output");
-    var input = document.getElementById("input");
-    var ws;
-    var print = function(message) {
-        var d = document.createElement("div");
-        d.innerHTML = message;
-        output.appendChild(d);
-    };
-    document.getElementById("open").onclick = function(evt) {
-        if (ws) {
-            return false;
-        }
-        ws = new WebSocket("{{.}}");
-        ws.onopen = function(evt) {
-            print("OPEN");
-        }
-        ws.onclose = function(evt) {
-            print("CLOSE");
-            ws = null;
-        }
-        ws.onmessage = function(evt) {
-            print("RESPONSE: " + evt.data);
-        }
-        ws.onerror = function(evt) {
-            print("ERROR: " + evt.data);
-        }
-        return false;
-    };
-    document.getElementById("send").onclick = function(evt) {
-        if (!ws) {
-            return false;
-        }
-        print("SEND: " + input.value);
-        ws.send(input.value);
-        return false;
-    };
-    document.getElementById("close").onclick = function(evt) {
-        if (!ws) {
-            return false;
-        }
-        ws.close();
-        return false;
-    };
-});
-</script>
-</head>
-<body>
-<table>
-<tr><td valign="top" width="50%">
-<p>Click "Open" to create a connection to the server,
-"Send" to send a message to the server and "Close" to close the connection.
-You can change the message and send multiple times.
-<p>
-<form>
-<button id="open">Open</button>
-<button id="close">Close</button>
-<p><input id="input" type="text" value="Hello world!">
-<button id="send">Send</button>
-</form>
-</td><td valign="top" width="50%">
-<div id="output"></div>
-</td></tr></table>
-</body>
-</html>
-`))
+// 	err = c.WriteMessage(mt, []byte("OK dingleberries"))
+// 	if err != nil {
+// 		log.Println("Write error: ", err)
+// 	}
+// }
