@@ -3,11 +3,13 @@ package main
 // https://github.com/gorilla/websocket/blob/master/examples/echo/client.go
 
 import (
-	"fmt"
+	"encoding/json"
 	"log"
 	"net/url"
 	"os"
 	"os/signal"
+
+	ultradeckcli "gitlab.com/gammons/ultradeck-cli"
 
 	"github.com/gorilla/websocket"
 	"github.com/twinj/uuid"
@@ -20,26 +22,23 @@ type Client struct {
 	Interrupt chan os.Signal
 }
 
+/*
+
+{ request: "auth", token: "abcd1234", tokenType: "intermediate" }
+
+*/
+
 func main() {
 	client := &Client{}
+	client.OpenConnection()
+
 	switch os.Args[1] {
 	case "auth":
 		client.DoAuth()
 	}
 }
 
-// DoAuth does auth
-func (c *Client) DoAuth() {
-	c.openConnection()
-
-	msg := fmt.Sprintf("AUTH %s", uuid.NewV4())
-	err := c.Conn.WriteMessage(websocket.TextMessage, []byte(msg))
-	if err != nil {
-		log.Println("write err: ", err)
-	}
-}
-
-func (c *Client) openConnection() {
+func (c *Client) OpenConnection() {
 	c.Interrupt = make(chan os.Signal, 1)
 	signal.Notify(c.Interrupt, os.Interrupt)
 
@@ -52,24 +51,39 @@ func (c *Client) openConnection() {
 		log.Fatal("dial:", err)
 	}
 	log.Println("Dialed")
-	defer c.Conn.Close()
+	// defer c.Conn.Close()
 
 	c.Done = make(chan struct{})
 
-	c.setupMessageReader()
-
-	select {
-	case <-c.Done:
-		log.Println("Got done msg")
-	case <-c.Interrupt:
-		c.closeConnection()
-		log.Println("interrupt")
-	}
 }
 
-func (c *Client) setupMessageReader() {
+// DoAuth does auth
+func (c *Client) DoAuth() {
+
+	var auth = make(map[string]interface{})
+	auth["token"] = uuid.NewV4()
+	auth["tokenType"] = "intermediate"
+
+	req := &ultradeckcli.Request{Request: ultradeckcli.AUTH_REQUEST, Data: auth}
+
+	authMsg, err := json.Marshal(req)
+	if err != nil {
+		log.Println("json.Marshal err: ", err)
+	}
+
+	log.Printf("authMsg = %s", auth)
+
+	err = c.Conn.WriteMessage(websocket.TextMessage, []byte(authMsg))
+	if err != nil {
+		log.Println("write err: ", err)
+	}
+
+	c.listen()
+}
+
+func (c *Client) listen() {
 	go func() {
-		log.Println("In setupMessageReader")
+		log.Println("Listening..")
 		defer c.Conn.Close()
 		defer close(c.Done)
 		for {
@@ -82,6 +96,15 @@ func (c *Client) setupMessageReader() {
 		}
 	}()
 
+	log.Println("after setupMessageReader")
+
+	select {
+	case <-c.Done:
+		log.Println("Got done msg")
+	case <-c.Interrupt:
+		c.closeConnection()
+		log.Println("interrupt")
+	}
 }
 
 func (c *Client) closeConnection() {
@@ -100,6 +123,7 @@ func (c *Client) serverURL() string {
 }
 
 func (c *Client) processMessage(message string) {
+	log.Println("in processMessage ", message)
 	switch message {
 	case "DO-OAUTH":
 

@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"net/http"
-	"strings"
+
+	ultradeckcli "gitlab.com/gammons/ultradeck-cli"
 
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
@@ -45,29 +47,15 @@ func main() {
 		DB:       0,  // use default DB
 	})
 
-	http.HandleFunc("/", server.HandleNewRequest)
+	http.HandleFunc("/", server.Serve)
 	log.Println("Listening ln localhost:8080")
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
 
-func (s *Server) HandleNewRequest(w http.ResponseWriter, r *http.Request) {
-	s.serve(w, r)
-}
-
-func (s *Server) upgradeConnection(w http.ResponseWriter, r *http.Request) *websocket.Conn {
-	var upgrader = websocket.Upgrader{}
-	Conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Print("upgrade:", err)
-		return nil
-	}
-	defer Conn.Close()
-
-	return Conn
-}
-
-func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
+func (s *Server) Serve(w http.ResponseWriter, r *http.Request) {
 	conn := s.upgradeConnection(w, r)
+	defer conn.Close()
+
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
@@ -76,21 +64,28 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("recv: '%s'", message)
 
-		splitted := strings.Fields(string(message))
-		switch splitted[0] {
-		case "AUTH":
-			s.performAuth(splitted)
+		req := &ultradeckcli.Request{}
+		json.Unmarshal(message, req)
+
+		switch req.Request {
+		case ultradeckcli.AUTH_REQUEST:
+			s.performAuth(*req)
 		}
 	}
 }
 
-func (s *Server) performAuth(message []string) {
-	//s.Conn.WriteMessage(websocket.TextMessage)
+func (s *Server) upgradeConnection(w http.ResponseWriter, r *http.Request) *websocket.Conn {
+	var upgrader = websocket.Upgrader{}
+	Conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("upgrade error:", err)
+		return nil
+	}
 
+	return Conn
 }
 
-// 	err = c.WriteMessage(mt, []byte("OK dingleberries"))
-// 	if err != nil {
-// 		log.Println("Write error: ", err)
-// 	}
-// }
+func (s *Server) performAuth(request ultradeckcli.Request) {
+	log.Println("in performAuth", request.Data["tokenType"])
+	//s.Conn.WriteMessage(websocket.TextMessage)
+}
