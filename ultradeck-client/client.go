@@ -64,7 +64,7 @@ func (c *Client) DoAuth() {
 	auth["token"] = uuid.NewV4()
 	auth["tokenType"] = "intermediate"
 
-	req := &ultradeckcli.Request{Request: ultradeckcli.AUTH_REQUEST, Data: auth}
+	req := &ultradeckcli.Request{Request: ultradeckcli.AuthRequest, Data: auth}
 
 	authMsg, err := json.Marshal(req)
 	if err != nil {
@@ -92,7 +92,10 @@ func (c *Client) listen() {
 				log.Println("read error:", err)
 				return
 			}
-			c.processMessage(string(message))
+
+			req := &ultradeckcli.Request{}
+			json.Unmarshal(message, req)
+			c.processMessage(req)
 		}
 	}()
 
@@ -108,6 +111,7 @@ func (c *Client) listen() {
 }
 
 func (c *Client) closeConnection() {
+	close(c.Done)
 	err := c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	if err != nil {
 		log.Println("write close err:", err)
@@ -122,12 +126,16 @@ func (c *Client) serverURL() string {
 	return u.String()
 }
 
-func (c *Client) processMessage(message string) {
-	log.Println("in processMessage ", message)
-	switch message {
-	case "DO-OAUTH":
-
-	case "DONE":
-		c.closeConnection()
+func (c *Client) processMessage(req *ultradeckcli.Request) {
+	log.Println("in processMessage with ", req)
+	switch req.Request {
+	case ultradeckcli.AuthResponse:
+		c.processAuthResponse(req)
 	}
+}
+
+func (c *Client) processAuthResponse(req *ultradeckcli.Request) {
+	log.Println("in processAuthResponse with ", req)
+	log.Println("closing connection")
+	c.closeConnection()
 }
