@@ -39,6 +39,11 @@ Auth flow:
 6. websocket server forwards access token to client and closes connection
 7. client writes ~/.config/ultradeck.json
 
+redis message:
+
+json = {request: "auth_response", data: {intermediateToken: "e91ffb08-dbdf-4e9e-abd9-3eb59a2ca37b", token: "abcd1234"}}
+r.rpush 'ultradeck', json.to_json
+
 */
 
 /*
@@ -114,7 +119,7 @@ func (s *Server) SetupRedisListener() {
 				panic(err)
 			}
 
-			s.processRequest(req)
+			s.writeResponse(req)
 		}
 	}()
 }
@@ -131,33 +136,38 @@ func (s *Server) upgradeConnection(w http.ResponseWriter, r *http.Request) *webs
 }
 
 func (s *Server) processRequest(request *ultradeckcli.Request) {
-	log.Println("Processing request ", request)
 	switch request.Request {
-	// case ultradeckcli.AuthRequest: //server does not need to explicitly do anything while waiting for oauth
-	// 	s.performAuth(request)
-	case ultradeckcli.AuthResponse:
-		s.performAuthResponse(request)
+	case ultradeckcli.AuthRequest:
+		log.Println("Received auth request, awaiting response...")
 	}
 }
 
-func (s *Server) performAuthResponse(request *ultradeckcli.Request) {
+func (s *Server) writeResponse(request *ultradeckcli.Request) {
+	log.Println("Writing response")
+	conns := s.Connections[request.Data["token"].(string)]
 
-	conns := s.Connections[request.Data["intermediateToken"].(string)]
-
-	for _, conn := range conns {
+	var keysToDelete []int
+	for i, conn := range conns {
 
 		w, err := conn.NextWriter(websocket.TextMessage)
 		if err != nil {
-			// TODO: when we error here, that means the client connection has gone away.
-			// we will need to remove this connection from the Connections list.
+			keysToDelete = append(keysToDelete, i)
 			log.Println("Error writing auth response: ", err)
-			return
+		} else {
+			res := &ultradeckcli.Request{Request: ultradeckcli.AuthResponse, Data: request.Data}
+			message, _ := json.Marshal(res)
+
+			w.Write(message)
+			w.Close()
 		}
-
-		res := &ultradeckcli.Request{Request: ultradeckcli.AuthResponse, Data: request.Data}
-		message, _ := json.Marshal(res)
-
-		w.Write(message)
-		w.Close()
 	}
+
+	for _, i := range keysToDelete {
+		log.Println("deleting closed connection at position ", i)
+		s.Connections[request.Data["token"].(string)] = append(conns[:i], conns[i+1:]...)
+	}
+}
+
+func (s *Server) deleteClosedConns() {
+
 }
