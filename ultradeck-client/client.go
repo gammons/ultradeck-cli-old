@@ -86,18 +86,22 @@ func (c *Client) DoAuth(token string) {
 func (c *Client) listen() {
 	go func() {
 		log.Println("Listening..")
-		defer c.Conn.Close()
-		defer close(c.Done)
 		for {
 			_, message, err := c.Conn.ReadMessage()
 			if err != nil {
 				log.Println("read error:", err)
-				return
+				break
 			}
 
 			req := &ultradeckcli.Request{}
 			json.Unmarshal(message, req)
 			c.processMessage(req)
+		}
+
+		c.Conn.Close()
+		_, ok := <-c.Done
+		if ok {
+			close(c.Done)
 		}
 	}()
 
@@ -113,13 +117,13 @@ func (c *Client) listen() {
 }
 
 func (c *Client) closeConnection() {
-	close(c.Done)
 	err := c.Conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 	if err != nil {
 		log.Println("write close err:", err)
 		return
 	}
 	c.Conn.Close()
+	close(c.Done)
 }
 
 func (c *Client) serverURL() string {
