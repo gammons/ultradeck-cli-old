@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/url"
 	"os"
@@ -12,6 +13,7 @@ import (
 	ultradeckcli "gitlab.com/gammons/ultradeck-cli"
 
 	"github.com/gorilla/websocket"
+	"github.com/skratchdot/open-golang/open"
 	"github.com/twinj/uuid"
 )
 
@@ -65,18 +67,16 @@ func (c *Client) DoAuth() {
 	auth["tokenType"] = "intermediate"
 
 	req := &ultradeckcli.Request{Request: ultradeckcli.AuthRequest, Data: auth}
-
-	authMsg, err := json.Marshal(req)
-	if err != nil {
-		log.Println("json.Marshal err: ", err)
-	}
-
+	authMsg, _ := json.Marshal(req)
 	log.Printf("authMsg = %s", auth)
 
-	err = c.Conn.WriteMessage(websocket.TextMessage, []byte(authMsg))
+	err := c.Conn.WriteMessage(websocket.TextMessage, []byte(authMsg))
 	if err != nil {
 		log.Println("write err: ", err)
 	}
+
+	url := fmt.Sprintf("http://localhost:3000/start_auth?token=%s", auth["token"])
+	open.Start(url)
 
 	c.listen()
 }
