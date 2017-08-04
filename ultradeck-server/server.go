@@ -75,6 +75,7 @@ func (s *Server) Serve(w http.ResponseWriter, r *http.Request) {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("Read error: ", err)
+			s.removeConnection(conn)
 			break
 		}
 		log.Printf("recv: '%s'", message)
@@ -146,13 +147,12 @@ func (s *Server) writeResponse(request *ultradeckcli.Request) {
 	log.Println("Writing response")
 	conns := s.Connections[request.Data["token"].(string)]
 
-	var keysToDelete []int
-	for i, conn := range conns {
+	for _, conn := range conns {
 
 		w, err := conn.NextWriter(websocket.TextMessage)
 		if err != nil {
-			keysToDelete = append(keysToDelete, i)
 			log.Println("Error writing auth response: ", err)
+			s.removeConnection(conn)
 		} else {
 			res := &ultradeckcli.Request{Request: ultradeckcli.AuthResponse, Data: request.Data}
 			message, _ := json.Marshal(res)
@@ -161,13 +161,26 @@ func (s *Server) writeResponse(request *ultradeckcli.Request) {
 			w.Close()
 		}
 	}
-
-	for _, i := range keysToDelete {
-		log.Println("deleting closed connection at position ", i)
-		s.Connections[request.Data["token"].(string)] = append(conns[:i], conns[i+1:]...)
-	}
 }
 
-func (s *Server) deleteClosedConns() {
+func (s *Server) removeConnection(c *websocket.Conn) {
+	var key string
+	var indexToDelete int
 
+	for k, connections := range s.Connections {
+		for i, connection := range connections {
+			if c == connection {
+				log.Printf("Found bad connection at [%s][%v]", k, i)
+				key = k
+				indexToDelete = i
+			}
+		}
+	}
+
+	conns := s.Connections[key]
+	s.Connections[key] = append(conns[:indexToDelete], conns[indexToDelete+1:]...)
+
+	if len(s.Connections[key]) == 0 {
+		delete(s.Connections, key)
+	}
 }
