@@ -36,7 +36,9 @@ func main() {
 
 	switch os.Args[1] {
 	case "auth":
-		client.DoAuth()
+		client.DoAuth(string(uuid.NewV4()))
+	case "testauth":
+		client.DoAuth("abcd1234")
 	}
 }
 
@@ -60,10 +62,10 @@ func (c *Client) OpenConnection() {
 }
 
 // DoAuth does auth
-func (c *Client) DoAuth() {
+func (c *Client) DoAuth(token string) {
 
 	var auth = make(map[string]interface{})
-	auth["token"] = uuid.NewV4()
+	auth["token"] = token
 	auth["tokenType"] = "intermediate"
 
 	req := &ultradeckcli.Request{Request: ultradeckcli.AuthRequest, Data: auth}
