@@ -1,4 +1,4 @@
-package ultradeckcli
+package ultradeck
 
 const AuthRequest = "auth"
 const AuthResponse = "auth_response"

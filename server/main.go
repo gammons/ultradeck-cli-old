@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	ultradeckcli "gitlab.com/gammons/ultradeck-cli"
+	"gitlab.com/gammons/ultradeck-cli/ultradeck"
 
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
@@ -80,7 +80,7 @@ func (s *Server) Serve(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("recv: '%s'", message)
 
-		req := &ultradeckcli.Request{}
+		req := &ultradeck.Request{}
 		json.Unmarshal(message, req)
 
 		connectionsForToken := s.Connections[req.Data["token"].(string)]
@@ -114,7 +114,7 @@ func (s *Server) SetupRedisListener() {
 
 			log.Println("redis result is ", result[1])
 
-			req := &ultradeckcli.Request{}
+			req := &ultradeck.Request{}
 			err = json.Unmarshal([]byte(result[1]), req)
 			if err != nil {
 				panic(err)
@@ -136,14 +136,14 @@ func (s *Server) upgradeConnection(w http.ResponseWriter, r *http.Request) *webs
 	return Conn
 }
 
-func (s *Server) processRequest(request *ultradeckcli.Request) {
+func (s *Server) processRequest(request *ultradeck.Request) {
 	switch request.Request {
-	case ultradeckcli.AuthRequest:
+	case ultradeck.AuthRequest:
 		log.Println("Received auth request, awaiting response...")
 	}
 }
 
-func (s *Server) writeResponse(request *ultradeckcli.Request) {
+func (s *Server) writeResponse(request *ultradeck.Request) {
 	log.Println("Writing response")
 	conns := s.Connections[request.Data["token"].(string)]
 
@@ -154,7 +154,7 @@ func (s *Server) writeResponse(request *ultradeckcli.Request) {
 			log.Println("Error writing auth response: ", err)
 			s.removeConnection(conn)
 		} else {
-			res := &ultradeckcli.Request{Request: ultradeckcli.AuthResponse, Data: request.Data}
+			res := &ultradeck.Request{Request: ultradeck.AuthResponse, Data: request.Data}
 			message, _ := json.Marshal(res)
 
 			w.Write(message)

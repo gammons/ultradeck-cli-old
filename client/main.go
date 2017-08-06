@@ -10,7 +10,7 @@ import (
 	"os"
 	"os/signal"
 
-	ultradeckcli "gitlab.com/gammons/ultradeck-cli"
+	"gitlab.com/gammons/ultradeck-cli/ultradeck"
 
 	"github.com/gorilla/websocket"
 	"github.com/skratchdot/open-golang/open"
@@ -68,7 +68,7 @@ func (c *Client) DoAuth(token string) {
 	auth["token"] = token
 	auth["tokenType"] = "intermediate"
 
-	req := &ultradeckcli.Request{Request: ultradeckcli.AuthRequest, Data: auth}
+	req := &ultradeck.Request{Request: ultradeck.AuthRequest, Data: auth}
 	authMsg, _ := json.Marshal(req)
 	log.Printf("authMsg = %s", auth)
 
@@ -93,7 +93,7 @@ func (c *Client) listen() {
 				break
 			}
 
-			req := &ultradeckcli.Request{}
+			req := &ultradeck.Request{}
 			json.Unmarshal(message, req)
 			c.processMessage(req)
 		}
@@ -132,16 +132,16 @@ func (c *Client) serverURL() string {
 	return u.String()
 }
 
-func (c *Client) processMessage(req *ultradeckcli.Request) {
+func (c *Client) processMessage(req *ultradeck.Request) {
 	log.Println("in processMessage with ", req)
 	switch req.Request {
-	case ultradeckcli.AuthResponse:
+	case ultradeck.AuthResponse:
 		c.processAuthResponse(req)
 	}
 }
 
-func (c *Client) processAuthResponse(req *ultradeckcli.Request) {
+func (c *Client) processAuthResponse(req *ultradeck.Request) {
 	log.Println("in processAuthResponse with ", req)
-	log.Println("closing connection")
 	c.closeConnection()
+
 }
