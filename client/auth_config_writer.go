@@ -29,24 +29,19 @@ func (c *AuthConfig) AuthFileExists() bool {
 }
 
 func (c *AuthConfig) WriteAuth() {
-	log.Println("Writing auth")
 	data, _ := json.Marshal(c.AuthJson)
-	log.Println("Data is", data)
 
 	if c.AuthFileExists() {
 		c.RemoveAuthFile()
 	}
 
 	if err := os.MkdirAll(c.configFilePath(), os.ModePerm); err != nil {
-		log.Println("Error creating directory structure", err)
 		os.Exit(1)
 	}
 
 	if err := ioutil.WriteFile(c.configFileLocation(), []byte(data), 0644); err != nil {
 		log.Println("Error writing json file", err)
-		os.Exit(1)
 	}
-	log.Println("Done writing auth")
 }
 
 func (c *AuthConfig) RemoveAuthFile() {
