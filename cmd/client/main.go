@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 
+	"gitlab.com/gammons/ultradeck-cli/client"
 	"gitlab.com/gammons/ultradeck-cli/ultradeck"
 
 	"github.com/gorilla/websocket"
@@ -36,7 +37,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "auth":
-		client.DoAuth(string(uuid.NewV4()))
+		client.DoAuth("whatever")
 	case "testauth":
 		client.DoAuth("abcd1234")
 	}
@@ -65,7 +66,7 @@ func (c *Client) OpenConnection() {
 func (c *Client) DoAuth(token string) {
 
 	var auth = make(map[string]interface{})
-	auth["token"] = token
+	auth["token"] = uuid.NewV4()
 	auth["tokenType"] = "intermediate"
 
 	req := &ultradeck.Request{Request: ultradeck.AuthRequest, Data: auth}
@@ -142,6 +143,8 @@ func (c *Client) processMessage(req *ultradeck.Request) {
 
 func (c *Client) processAuthResponse(req *ultradeck.Request) {
 	log.Println("in processAuthResponse with ", req)
+	log.Println("token is ", req.Data["access_token"].(string))
+	writer := client.NewAuthConfigWriter(req.Data["access_token"].(string))
+	writer.WriteAuth()
 	c.closeConnection()
-
 }
