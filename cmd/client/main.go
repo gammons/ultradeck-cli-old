@@ -5,8 +5,8 @@ package main
 import (
 	"os"
 
-	"gitlab.com/gammons/ultradeck-cli/client"
-	"gitlab.com/gammons/ultradeck-cli/ultradeck"
+	"github.com/gammons/ultradeck-cli/client"
+	"github.com/gammons/ultradeck-cli/ultradeck"
 )
 
 type Client struct {
@@ -19,6 +19,14 @@ func main() {
 	switch os.Args[1] {
 	case "auth":
 		client.doAuth()
+
+	// initialize an existing markdown file to be connected with ultradeck.co
+	case "init":
+
+	// creates a new directory wioth a deck.md in it
+	// also ties it to ultradeck.co with a .ud.yml file in it
+	// also initializes git repo with a .gitignore?
+	case "create":
 	}
 }
 

@@ -11,8 +11,8 @@ import (
 	"github.com/skratchdot/open-golang/open"
 	"github.com/twinj/uuid"
 
+	"github.com/gammons/ultradeck-cli/ultradeck"
 	"github.com/gorilla/websocket"
-	"gitlab.com/gammons/ultradeck-cli/ultradeck"
 )
 
 // Client is the client

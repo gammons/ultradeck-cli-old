@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"gitlab.com/gammons/ultradeck-cli/ultradeck"
+	"github.com/gammons/ultradeck-cli/ultradeck"
 
 	"github.com/go-redis/redis"
 	"github.com/gorilla/websocket"
