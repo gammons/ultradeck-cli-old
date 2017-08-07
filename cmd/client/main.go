@@ -3,6 +3,7 @@ package main
 // https://github.com/gorilla/websocket/blob/master/examples/echo/client.go
 
 import (
+	"log"
 	"os"
 
 	"github.com/gammons/ultradeck-cli/client"
@@ -14,11 +15,11 @@ type Client struct {
 }
 
 func main() {
-	client := &Client{}
+	c := &Client{}
 
 	switch os.Args[1] {
 	case "auth":
-		client.doAuth()
+		c.doAuth()
 
 	// initialize an existing markdown file to be connected with ultradeck.co
 	case "init":
@@ -27,6 +28,27 @@ func main() {
 	// also ties it to ultradeck.co with a .ud.yml file in it
 	// also initializes git repo with a .gitignore?
 	case "create":
+
+	// pushes deck (and related assets) to ultradeck.co
+	// ultradeck will check timestamp, and reject if timestamp on server is newer
+	// can be forced with -f
+	case "push":
+
+	// pull deck (and related assets) from ultradeck.co
+	// client will check timestamps and reject if client timestamp is newer
+	// must be done PER FILE
+	// can be forced with -f
+	case "pull":
+
+	// watch a directory and auto-make changes on ultradeck's server
+	// uses websocket connection and other cool shit to pull this off
+	case "watch":
+
+	// check if logged in. internal for testing
+	case "check":
+		//TODO : DO THIS ONE NEXT
+		// we'll need to run the check before each other command.
+		c.checkAuth()
 	}
 }
 
@@ -36,7 +58,21 @@ func (c *Client) doAuth() {
 }
 
 func (c *Client) processAuthResponse(req *ultradeck.Request) {
-	writer := client.NewAuthConfigWriter(req.Data["access_token"].(string))
+	writer := client.NewAuthConfig(req.Data["access_token"].(string))
 	writer.WriteAuth()
 	c.Conn.CloseConnection()
+}
+
+func (c *Client) checkAuth() {
+	authConfig := &client.AuthConfig{}
+	if authConfig.AuthFileExists() {
+		token := authConfig.GetToken()
+
+		httpClient := client.NewHttpClient(token)
+		bodyBytes := httpClient.PerformRequest("api/v1/auth/me")
+		log.Println(string(bodyBytes))
+	} else {
+		log.Println("No auth config file found!")
+		log.Println("Please run 'ultradeck auth' to log in.")
+	}
 }

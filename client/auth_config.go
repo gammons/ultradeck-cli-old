@@ -17,7 +17,7 @@ type AuthJson struct {
 	Token string `json:"token"`
 }
 
-func NewAuthConfigWriter(token string) *AuthConfig {
+func NewAuthConfig(token string) *AuthConfig {
 	return &AuthConfig{AuthJson: &AuthJson{Token: token}}
 }
 
@@ -42,6 +42,29 @@ func (c *AuthConfig) WriteAuth() {
 	if err := ioutil.WriteFile(c.configFileLocation(), []byte(data), 0644); err != nil {
 		log.Println("Error writing json file", err)
 	}
+}
+
+func (c *AuthConfig) ReadConfig() *AuthJson {
+	if !c.AuthFileExists() {
+		return nil
+	}
+
+	data, err := ioutil.ReadFile(c.configFileLocation())
+	if err != nil {
+		log.Println("error reading auth config file: ", err)
+	}
+
+	var authJson *AuthJson
+	err = json.Unmarshal(data, &authJson)
+	if err != nil {
+		log.Println("error reading auth config json: ", err)
+	}
+	return authJson
+}
+
+func (c *AuthConfig) GetToken() string {
+	authJson := c.ReadConfig()
+	return authJson.Token
 }
 
 func (c *AuthConfig) RemoveAuthFile() {
