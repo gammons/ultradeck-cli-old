@@ -3,7 +3,7 @@ package main
 // https://github.com/gorilla/websocket/blob/master/examples/echo/client.go
 
 import (
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/gammons/ultradeck-cli/client"
@@ -68,11 +68,16 @@ func (c *Client) checkAuth() {
 	if authConfig.AuthFileExists() {
 		token := authConfig.GetToken()
 
-		httpClient := client.NewHttpClient(token)
-		bodyBytes := httpClient.PerformRequest("api/v1/auth/me")
-		log.Println(string(bodyBytes))
+		authCheck := &client.AuthCheck{}
+		resp := authCheck.CheckAuth(token)
+
+		if resp.IsSignedIn {
+			fmt.Printf("\nWelcome, %s! You're signed in.\n", resp.Name)
+		} else {
+			fmt.Println("\nIt does not look like you're signed in anymore.")
+		}
 	} else {
-		log.Println("No auth config file found!")
-		log.Println("Please run 'ultradeck auth' to log in.")
+		fmt.Println("\nNo auth config file found!")
+		fmt.Println("Please run 'ultradeck auth' to log in.")
 	}
 }
