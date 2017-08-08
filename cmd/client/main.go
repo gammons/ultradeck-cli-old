@@ -3,6 +3,7 @@ package main
 // https://github.com/gorilla/websocket/blob/master/examples/echo/client.go
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 
@@ -28,6 +29,7 @@ func main() {
 	// also ties it to ultradeck.co with a .ud.yml file in it
 	// also initializes git repo with a .gitignore?
 	case "create":
+		c.authorizedCommand(c.create)
 
 	// pushes deck (and related assets) to ultradeck.co
 	// ultradeck will check timestamp, and reject if timestamp on server is newer
@@ -46,9 +48,7 @@ func main() {
 
 	// check if logged in. internal for testing
 	case "check":
-		//TODO : DO THIS ONE NEXT
-		// we'll need to run the check before each other command.
-		c.checkAuth()
+		c.authorizedCommand(c.checkAuth)
 	}
 }
 
@@ -63,18 +63,34 @@ func (c *Client) processAuthResponse(req *ultradeck.Request) {
 	c.Conn.CloseConnection()
 }
 
-func (c *Client) checkAuth() {
+func (c *Client) checkAuth(resp *client.AuthCheckResponse) {
+	fmt.Printf("\nWelcome, %s! You're signed in.\n", resp.Name)
+}
+
+func (c *Client) create(resp *client.AuthCheckResponse) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("What is the name of your deck?")
+	text, _ := reader.ReadString('\n')
+	fmt.Println("you entered ", text)
+
+	//httpClient := client.NewHttpClient(token)
+
+}
+
+func (c *Client) authorizedCommand(cmd func(resp *client.AuthCheckResponse)) {
 	authConfig := &client.AuthConfig{}
 	if authConfig.AuthFileExists() {
 		token := authConfig.GetToken()
 
 		authCheck := &client.AuthCheck{}
 		resp := authCheck.CheckAuth(token)
+		resp.Token = token
 
 		if resp.IsSignedIn {
-			fmt.Printf("\nWelcome, %s! You're signed in.\n", resp.Name)
+			cmd(resp)
 		} else {
 			fmt.Println("\nIt does not look like you're signed in anymore.")
+			fmt.Println("Please run 'ultradeck auth' to sign in again.")
 		}
 	} else {
 		fmt.Println("\nNo auth config file found!")

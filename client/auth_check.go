@@ -7,6 +7,7 @@ type AuthCheck struct{}
 type AuthCheckResponse struct {
 	IsSignedIn bool   `json:"is_signed_in"`
 	Name       string `json:"username"`
+	Token      string
 }
 
 func (a *AuthCheck) CheckAuth(token string) *AuthCheckResponse {
