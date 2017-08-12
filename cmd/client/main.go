@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 
@@ -67,14 +68,25 @@ func (c *Client) checkAuth(resp *client.AuthCheckResponse) {
 	fmt.Printf("\nWelcome, %s! You're signed in.\n", resp.Name)
 }
 
+type Deck struct {
+	Title string `json:"title"`
+}
+
+type CreateDeck struct {
+	Deck *Deck `json:"deck"`
+}
+
 func (c *Client) create(resp *client.AuthCheckResponse) {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("What is the name of your deck?")
-	text, _ := reader.ReadString('\n')
-	fmt.Println("you entered ", text)
+	name, _ := reader.ReadString('\n')
+	fmt.Println(name)
 
-	//httpClient := client.NewHttpClient(token)
-
+	httpClient := client.NewHttpClient(resp.Token)
+	createDeck := &CreateDeck{Deck: &Deck{Title: name}}
+	j, _ := json.Marshal(&createDeck)
+	bodyBytes := httpClient.PostRequest("api/v1/decks", j)
+	fmt.Println(string(bodyBytes))
 }
 
 func (c *Client) authorizedCommand(cmd func(resp *client.AuthCheckResponse)) {

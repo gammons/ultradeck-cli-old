@@ -12,7 +12,7 @@ type AuthCheckResponse struct {
 
 func (a *AuthCheck) CheckAuth(token string) *AuthCheckResponse {
 	httpClient := NewHttpClient(token)
-	bodyBytes := httpClient.PerformRequest("api/v1/auth/me")
+	bodyBytes := httpClient.GetRequest("api/v1/auth/me")
 
 	resp := &AuthCheckResponse{}
 	if err := json.Unmarshal(bodyBytes, &resp); err != nil {

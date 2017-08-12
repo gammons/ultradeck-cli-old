@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,11 +17,19 @@ func NewHttpClient(token string) *HttpClient {
 	return &HttpClient{Token: token}
 }
 
-func (h *HttpClient) PerformRequest(path string) []byte {
+func (h *HttpClient) GetRequest(path string) []byte {
+	return h.PerformRequest(path, "GET", []byte(""))
+}
+
+func (h *HttpClient) PostRequest(path string, body []byte) []byte {
+	return h.PerformRequest(path, "POST", body)
+}
+
+func (h *HttpClient) PerformRequest(path string, verb string, body []byte) []byte {
 
 	url := HttpUrl + path
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", url, nil)
+	req, _ := http.NewRequest(verb, url, bytes.NewBuffer(body))
 	authHeader := fmt.Sprintf("Bearer %s", h.Token)
 
 	req.Header.Set("Authorization", authHeader)
