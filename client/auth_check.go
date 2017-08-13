@@ -5,9 +5,13 @@ import "encoding/json"
 type AuthCheck struct{}
 
 type AuthCheckResponse struct {
-	IsSignedIn bool   `json:"is_signed_in"`
-	Name       string `json:"username"`
-	Token      string
+	IsSignedIn       bool   `json:"is_signed_in"`
+	Name             string `json:"name"`
+	Username         string `json:"username"`
+	ImageUrl         string `json:"image_url"`
+	Email            string `json:"email"`
+	SubscriptionName string `json:"subscriptionName"`
+	Token            string
 }
 
 func (a *AuthCheck) CheckAuth(token string) *AuthCheckResponse {

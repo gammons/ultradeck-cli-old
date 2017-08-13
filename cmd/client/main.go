@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/gammons/ultradeck-cli/client"
@@ -53,8 +54,8 @@ func main() {
 		c.authorizedCommand(c.checkAuth)
 
 	// check if logged in. internal for testing
-	case "upgrade_to_paid":
-		c.upgradeToPaid()
+	case "upgrade":
+		c.authorizedCommand(c.upgradeToPaid)
 	}
 }
 
@@ -73,10 +74,20 @@ func (c *Client) checkAuth(resp *client.AuthCheckResponse) {
 	fmt.Printf("\nWelcome, %s! You're signed in.\n", resp.Name)
 }
 
-func (c *Client) upgradeToPaid() {
+func (c *Client) upgradeToPaid(resp *client.AuthCheckResponse) {
+	req, _ := http.NewRequest("GET", "http://localhost:3001/auth", nil)
+	q := req.URL.Query()
+	q.Add("username", resp.Username)
+	q.Add("name", resp.Name)
+	q.Add("token", resp.Token)
+	q.Add("image_url", resp.ImageUrl)
+	q.Add("email", resp.Email)
+	q.Add("subscription_name", resp.SubscriptionName)
+	q.Add("redirect", "/account")
+	req.URL.RawQuery = q.Encode()
+
 	fmt.Printf("\nSending you to the pricing page...")
-	url := fmt.Sprintf("http://localhost:3001/account")
-	open.Start(url)
+	open.Start(req.URL.String())
 }
 
 type Deck struct {
