@@ -14,11 +14,25 @@ type AuthConfig struct {
 }
 
 type AuthJson struct {
-	Token string `json:"token"`
+	Token            string `json:"token"`
+	Username         string `json:"username"`
+	Name             string `json:"name"`
+	ImageUrl         string `json:"image_url"`
+	Email            string `json:"email"`
+	SubscriptionName string `json:"subscription_name"`
 }
 
-func NewAuthConfig(token string) *AuthConfig {
-	return &AuthConfig{AuthJson: &AuthJson{Token: token}}
+func NewAuthConfig(response map[string]interface{}) *AuthConfig {
+	authJson := &AuthJson{
+		Token:            response["access_token"].(string),
+		Username:         response["username"].(string),
+		Name:             response["name"].(string),
+		ImageUrl:         response["image_url"].(string),
+		Email:            response["email"].(string),
+		SubscriptionName: response["subscription_name"].(string),
+	}
+
+	return &AuthConfig{AuthJson: authJson}
 }
 
 func (c *AuthConfig) AuthFileExists() bool {

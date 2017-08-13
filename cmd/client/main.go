@@ -10,6 +10,7 @@ import (
 
 	"github.com/gammons/ultradeck-cli/client"
 	"github.com/gammons/ultradeck-cli/ultradeck"
+	"github.com/skratchdot/open-golang/open"
 )
 
 type Client struct {
@@ -50,6 +51,10 @@ func main() {
 	// check if logged in. internal for testing
 	case "check":
 		c.authorizedCommand(c.checkAuth)
+
+	// check if logged in. internal for testing
+	case "upgrade_to_paid":
+		c.upgradeToPaid()
 	}
 }
 
@@ -59,13 +64,19 @@ func (c *Client) doAuth() {
 }
 
 func (c *Client) processAuthResponse(req *ultradeck.Request) {
-	writer := client.NewAuthConfig(req.Data["access_token"].(string))
+	writer := client.NewAuthConfig(req.Data)
 	writer.WriteAuth()
 	c.Conn.CloseConnection()
 }
 
 func (c *Client) checkAuth(resp *client.AuthCheckResponse) {
 	fmt.Printf("\nWelcome, %s! You're signed in.\n", resp.Name)
+}
+
+func (c *Client) upgradeToPaid() {
+	fmt.Printf("\nSending you to the pricing page...")
+	url := fmt.Sprintf("http://localhost:3001/account")
+	open.Start(url)
 }
 
 type Deck struct {
@@ -86,7 +97,13 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 	createDeck := &CreateDeck{Deck: &Deck{Title: name}}
 	j, _ := json.Marshal(&createDeck)
 	bodyBytes := httpClient.PostRequest("api/v1/decks", j)
-	fmt.Println(string(bodyBytes))
+
+	if httpClient.Response.StatusCode == 200 {
+		fmt.Println("Cool, writing .ultradeck.json")
+	} else {
+		fmt.Println("Something went wrong with the request:")
+		fmt.Println(string(bodyBytes))
+	}
 }
 
 func (c *Client) authorizedCommand(cmd func(resp *client.AuthCheckResponse)) {

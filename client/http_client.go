@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 )
 
 const HttpUrl = "http://localhost:3000/"
 
 type HttpClient struct {
-	Token string
+	Token    string
+	Response *http.Response
 }
 
 func NewHttpClient(token string) *HttpClient {
@@ -36,13 +38,17 @@ func (h *HttpClient) PerformRequest(path string, verb string, body []byte) []byt
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
-	res, _ := client.Do(req)
+	var requestError error
+	if h.Response, requestError = client.Do(req); requestError != nil {
+		fmt.Println("Error contacting server: ", requestError)
+		os.Exit(0)
+	}
 
-	bodyBytes, err := ioutil.ReadAll(res.Body)
+	bodyBytes, err := ioutil.ReadAll(h.Response.Body)
 	if err != nil {
 		panic(err)
 	}
-	defer res.Body.Close()
+	defer h.Response.Body.Close()
 
 	return bodyBytes
 }
