@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gammons/ultradeck-cli/client"
 	"github.com/gammons/ultradeck-cli/ultradeck"
@@ -113,7 +114,12 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 		fmt.Println("Cool, writing .ultradeck.json")
 	} else {
 		fmt.Println("Something went wrong with the request:")
-		fmt.Println(string(bodyBytes))
+		if strings.Contains(string(bodyBytes), "There is a limit") {
+			fmt.Println("You can only create 1 deck with a free account.")
+			fmt.Println("Run `ultradeck upgrade` to upgrade your account!")
+		} else {
+			fmt.Println(string(bodyBytes))
+		}
 	}
 }
 
