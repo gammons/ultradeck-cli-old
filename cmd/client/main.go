@@ -39,6 +39,7 @@ func main() {
 	// ultradeck will check timestamp, and reject if timestamp on server is newer
 	// can be forced with -f
 	case "push":
+		//c.authorizedCommand(c.push)
 
 	// pull deck (and related assets) from ultradeck.co
 	// client will check timestamps and reject if client timestamp is newer
@@ -108,17 +109,25 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 	httpClient := client.NewHttpClient(resp.Token)
 	createDeck := &CreateDeck{Deck: &Deck{Title: name}}
 	j, _ := json.Marshal(&createDeck)
-	bodyBytes := httpClient.PostRequest("api/v1/decks", j)
+	jsonData := httpClient.PostRequest("api/v1/decks", j)
 
 	if httpClient.Response.StatusCode == 200 {
-		fmt.Println("Cool, writing .ultradeck.json")
+		fmt.Println("Writing .ud.json")
+
+		deckConfigManager := &client.DeckConfigManager{}
+		deckConfigManager.Write(jsonData)
+
+		fmt.Println("Creating deck.md")
+		markdownManager := &client.MarkdownManager{}
+		markdownManager.WriteFile()
+
 	} else {
 		fmt.Println("Something went wrong with the request:")
-		if strings.Contains(string(bodyBytes), "There is a limit") {
+		if strings.Contains(string(jsonData), "There is a limit") {
 			fmt.Println("You can only create 1 deck with a free account.")
 			fmt.Println("Run `ultradeck upgrade` to upgrade your account!")
 		} else {
-			fmt.Println(string(bodyBytes))
+			fmt.Println(string(jsonData))
 		}
 	}
 }
