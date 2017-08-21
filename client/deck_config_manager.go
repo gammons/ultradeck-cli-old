@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"strings"
 )
 
 type DeckConfig struct {
-	ID           int32    `json:"id"`
+	ID           int      `json:"id"`
 	Title        string   `json:"title"`
 	Description  string   `json:"description"`
 	Slug         string   `json:"slug"`
@@ -20,7 +21,7 @@ type DeckConfig struct {
 }
 
 type Slide struct {
-	ID             int32  `json:"id"`
+	ID             int    `json:"id"`
 	Position       int    `json:"position"`
 	Markdown       string `json:"markdown"`
 	PresenterNotes string `json:"presenter_notes"`
@@ -28,7 +29,7 @@ type Slide struct {
 }
 
 type Asset struct {
-	ID       int32  `json:"id"`
+	ID       int    `json:"id"`
 	Filename string `json:"filename"`
 	URL      string `json:"url"`
 }
@@ -49,3 +50,13 @@ func (d *DeckConfigManager) Write(jsonData []byte) {
 
 // func (d *DeckConfigManager) read() *DeckConfig {
 // }
+
+func (d *DeckConfigManager) ParseMarkdown(markdown string) []*Slide {
+	splitted := strings.Split(markdown, "---\n")
+	var slides []*Slide
+
+	for i, markdown := range splitted {
+		slides = append(slides, &Slide{Position: i, Markdown: markdown})
+	}
+	return slides
+}

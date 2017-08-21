@@ -39,7 +39,7 @@ func main() {
 	// ultradeck will check timestamp, and reject if timestamp on server is newer
 	// can be forced with -f
 	case "push":
-		//c.authorizedCommand(c.push)
+		c.authorizedCommand(c.push)
 
 	// pull deck (and related assets) from ultradeck.co
 	// client will check timestamps and reject if client timestamp is newer
@@ -104,7 +104,6 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("What is the name of your deck?")
 	name, _ := reader.ReadString('\n')
-	fmt.Println(name)
 
 	httpClient := client.NewHttpClient(resp.Token)
 	createDeck := &CreateDeck{Deck: &Deck{Title: name}}
@@ -130,6 +129,15 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 			fmt.Println(string(jsonData))
 		}
 	}
+}
+
+func (c *Client) push(resp *client.checkAuthResponse) {
+	// read .ud.json
+	// parse markdown file, push into slides array
+	// (eventually) upload + push assets into s3, and assets array
+	// pushnew ud json to server
+	// write new ud file
+
 }
 
 func (c *Client) authorizedCommand(cmd func(resp *client.AuthCheckResponse)) {
