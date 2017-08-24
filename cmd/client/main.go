@@ -117,8 +117,9 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 		deckConfigManager.Write(jsonData)
 
 		fmt.Println("Creating deck.md")
-		markdownManager := &client.MarkdownManager{}
-		markdownManager.WriteFile()
+		// TODO create a simple deck.md file
+		// markdownManager := &client.MarkdownManager{}
+		// markdownManager.WriteFile()
 
 	} else {
 		fmt.Println("Something went wrong with the request:")
@@ -131,13 +132,31 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 	}
 }
 
-func (c *Client) push(resp *client.checkAuthResponse) {
+func (c *Client) push(resp *client.AuthCheckResponse) {
 	// read .ud.json
-	// parse markdown file, push into slides array
-	// (eventually) upload + push assets into s3, and assets array
-	// pushnew ud json to server
-	// write new ud file
+	deckConfigManager := &client.DeckConfigManager{}
 
+	if !deckConfigManager.FileExists() {
+		fmt.Println("Could not find deck config!")
+		fmt.Println("Did you run 'ultradeck create' or 'ultradeck init' yet?")
+		return
+	}
+
+	// pushnew ud json to server
+	httpClient := client.NewHttpClient(resp.Token)
+
+	url := fmt.Sprintf("api/v1/decks/%d", deckConfigManager.GetDeckID())
+	jsonData := httpClient.PutRequest(url, deckConfigManager.PrepareJSON())
+
+	if httpClient.Response.StatusCode == 200 {
+		// write new ud file
+		fmt.Println("Writing .ud.json")
+		deckConfigManager.Write(jsonData)
+
+	} else {
+		fmt.Println("Something went wrong with the request:")
+		fmt.Println(string(jsonData))
+	}
 }
 
 func (c *Client) authorizedCommand(cmd func(resp *client.AuthCheckResponse)) {

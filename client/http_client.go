@@ -27,6 +27,10 @@ func (h *HttpClient) PostRequest(path string, body []byte) []byte {
 	return h.PerformRequest(path, "POST", body)
 }
 
+func (h *HttpClient) PutRequest(path string, body []byte) []byte {
+	return h.PerformRequest(path, "PUT", body)
+}
+
 func (h *HttpClient) PerformRequest(path string, verb string, body []byte) []byte {
 
 	url := HttpUrl + path
