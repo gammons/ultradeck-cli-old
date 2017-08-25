@@ -46,6 +46,7 @@ func main() {
 	// must be done PER FILE
 	// can be forced with -f
 	case "pull":
+		c.authorizedCommand(c.pull)
 
 	// watch a directory and auto-make changes on ultradeck's server
 	// uses websocket connection and other cool shit to pull this off
@@ -132,6 +133,30 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 	}
 }
 
+func (c *Client) pull(resp *client.AuthCheckResponse) {
+	deckConfigManager := &client.DeckConfigManager{}
+
+	if !deckConfigManager.FileExists() {
+		fmt.Println("Could not find deck config!")
+		fmt.Println("Did you run 'ultradeck create' or 'ultradeck init' yet?")
+		return
+	}
+
+	httpClient := client.NewHttpClient(resp.Token)
+
+	url := fmt.Sprintf("api/v1/decks/%d", deckConfigManager.GetDeckID())
+	jsonData := httpClient.GetRequest(url)
+
+	if httpClient.Response.StatusCode == 200 {
+		fmt.Println("Writing .ud.json")
+		deckConfigManager.Write(jsonData)
+
+	} else {
+		fmt.Println("Something went wrong with the request:")
+		fmt.Println(string(jsonData))
+	}
+}
+
 func (c *Client) push(resp *client.AuthCheckResponse) {
 	// read .ud.json
 	deckConfigManager := &client.DeckConfigManager{}
@@ -149,7 +174,6 @@ func (c *Client) push(resp *client.AuthCheckResponse) {
 	jsonData := httpClient.PutRequest(url, deckConfigManager.PrepareJSON())
 
 	if httpClient.Response.StatusCode == 200 {
-		// write new ud file
 		fmt.Println("Writing .ud.json")
 		deckConfigManager.Write(jsonData)
 
