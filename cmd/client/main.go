@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gammons/ultradeck-cli/client"
 	"github.com/gammons/ultradeck-cli/ultradeck"
@@ -27,7 +28,8 @@ func main() {
 		c.doAuth()
 
 	// initialize an existing markdown file to be connected with ultradeck.co
-	case "init":
+	// do I need this, with create?  not sure I do
+	//case "init":
 
 	// creates a new directory wioth a deck.md in it
 	// also ties it to ultradeck.co with a .ud.yml file in it
@@ -118,6 +120,7 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 		deckConfigManager.Write(jsonData)
 
 		fmt.Println("Creating deck.md")
+
 		// TODO create a simple deck.md file
 		// markdownManager := &client.MarkdownManager{}
 		// markdownManager.WriteFile()
@@ -148,9 +151,21 @@ func (c *Client) pull(resp *client.AuthCheckResponse) {
 	jsonData := httpClient.GetRequest(url)
 
 	if httpClient.Response.StatusCode == 200 {
-		fmt.Println("Writing .ud.json")
-		deckConfigManager.Write(jsonData)
 
+		var serverDeckConfig *client.DeckConfig
+		_ = json.Unmarshal(jsonData, &serverDeckConfig)
+
+		clientDeckConfig := deckConfigManager.ReadFile()
+
+		// date on server must be equal to or greater than date on client
+		if c.dateCompare(serverDeckConfig.UpdatedAt, clientDeckConfig.UpdatedAt) >= 0 {
+			fmt.Println("Pulling changes from ultradeck.co")
+			deckConfigManager.Write(jsonData)
+		} else {
+			fmt.Println("It looks like you might have local changes that are not on the server!")
+			fmt.Println("Did you make changes to your deck elsewhere, or on ultradeck.co?")
+			fmt.Println("You can force by running 'ultradeck pull -f'.")
+		}
 	} else {
 		fmt.Println("Something went wrong with the request:")
 		fmt.Println(string(jsonData))
@@ -202,4 +217,19 @@ func (c *Client) authorizedCommand(cmd func(resp *client.AuthCheckResponse)) {
 		fmt.Println("\nNo auth config file found!")
 		fmt.Println("Please run 'ultradeck auth' to log in.")
 	}
+}
+
+func (c *Client) dateCompare(d1 string, d2 string) int {
+	t1, _ := time.Parse("2006-01-02T15:04:05.000Z", d1)
+	t2, _ := time.Parse("2006-01-02T15:04:05.000Z", d2)
+
+	if t1.Before(t2) {
+		return -1
+	}
+
+	if t1.Equal(t2) {
+		return 0
+	}
+
+	return 1
 }
