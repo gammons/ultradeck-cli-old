@@ -61,6 +61,8 @@ func main() {
 	// check if logged in. internal for testing
 	case "upgrade":
 		c.authorizedCommand(c.upgradeToPaid)
+	case "assets":
+		c.authorizedCommand(c.assets)
 	}
 }
 
@@ -173,7 +175,6 @@ func (c *Client) pull(resp *client.AuthCheckResponse) {
 }
 
 func (c *Client) push(resp *client.AuthCheckResponse) {
-	// read .ud.json
 	deckConfigManager := &client.DeckConfigManager{}
 
 	if !deckConfigManager.FileExists() {
@@ -182,7 +183,6 @@ func (c *Client) push(resp *client.AuthCheckResponse) {
 		return
 	}
 
-	// pushnew ud json to server
 	httpClient := client.NewHttpClient(resp.Token)
 
 	url := fmt.Sprintf("api/v1/decks/%d", deckConfigManager.GetDeckID())
@@ -191,11 +191,16 @@ func (c *Client) push(resp *client.AuthCheckResponse) {
 	if httpClient.Response.StatusCode == 200 {
 		fmt.Println("Writing .ud.json")
 		deckConfigManager.Write(jsonData)
-
 	} else {
 		fmt.Println("Something went wrong with the request:")
 		fmt.Println(string(jsonData))
 	}
+}
+
+func (c *Client) assets(resp *client.AuthCheckResponse) {
+	fmt.Println("Syncing assets")
+	assetManager := &client.AssetManager{}
+	assetManager.SyncAssets(resp.Token)
 }
 
 func (c *Client) authorizedCommand(cmd func(resp *client.AuthCheckResponse)) {

@@ -15,9 +15,9 @@
 
 * [x] Implement pull
 * [x] Implement updated_at timestamp checking for push + pull
+* [ ] asset push / sync
 * [ ] Force command to force-push or force-pull
 * [ ] Implement watch
-* [ ] asset push / sync
 * [ ] webhook support on frontend to support auto-updating
 * [ ] Fix frontend (if needed b/c of potential breaking api changes)
 
