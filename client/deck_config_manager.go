@@ -2,7 +2,6 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -35,9 +34,10 @@ type Slide struct {
 }
 
 type Asset struct {
-	ID       int    `json:"id"`
-	Filename string `json:"filename"`
-	URL      string `json:"url"`
+	ID        int    `json:"-"`
+	Filename  string `json:"filename"`
+	URL       string `json:"url"`
+	UpdatedAt string `json:"updated_at"`
 }
 
 type DeckConfigManager struct{}
@@ -48,6 +48,10 @@ func (d *DeckConfigManager) Write(jsonData []byte) {
 		log.Println("Error writing deck config ", err)
 	}
 
+	d.WriteConfig(deckConfig)
+}
+
+func (d *DeckConfigManager) WriteConfig(deckConfig *DeckConfig) {
 	marshalledData, _ := json.Marshal(deckConfig)
 	if err := ioutil.WriteFile(".ud.json", marshalledData, 0644); err != nil {
 		log.Println("Error writing deck config: ", err)
@@ -73,15 +77,12 @@ func (d *DeckConfigManager) ReadFile() *DeckConfig {
 	return deckConfig
 }
 
-func (d *DeckConfigManager) PrepareJSON() []byte {
-	config := d.ReadFile()
-	config.Slides = d.ParseMarkdown()
+func (d *DeckConfigManager) PrepareJSON(deckConfig *DeckConfig) []byte {
+	deckConfig.Slides = d.ParseMarkdown()
 
-	deck := &Deck{Config: config}
+	deck := &Deck{Config: deckConfig}
 
 	j, _ := json.Marshal(&deck)
-
-	fmt.Println("json is ", string(j))
 
 	return j
 }

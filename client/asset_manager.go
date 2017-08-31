@@ -1,83 +1,136 @@
 package client
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"mime"
 	"net/http"
-	"net/url"
+	"os"
 	"strings"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/twinj/uuid"
 )
-
-type S3InfoResponse struct {
-	Bucket string `json:"bucket"`
-	Fields *FieldsResponse
-	Url    string `json:"url"`
-}
-
-type FieldsResponse struct {
-	Key                 string `json:"key"`
-	SuccessActionStatus string `json:"success_action_status"`
-	Acl                 string `json:"acl"`
-	Policy              string `json:"policy"`
-	XAmzCredential      string `json:"x-amz-credential"`
-	XAmzAlgorithm       string `json:"x-amz-algorithm"`
-	XAmzDate            string `json:"x-amz-date"`
-	XAmzSignature       string `json:"x-amz-signature"`
-}
 
 type AssetManager struct{}
 
-func (a *AssetManager) SyncAssets(token string) {
-	httpClient := NewHttpClient(token)
+type AwsCreds struct {
+	AccessKeyID     string `json:"access_key_id"`
+	SecretAccessKey string `json:"secret_access_key"`
+	SessionToken    string `json:"session_token"`
+}
 
-	for _, file := range a.readFiles() {
-		fmt.Println(file)
-
-		// call s3_info to get place to put it
-		bodyBytes := httpClient.GetRequest("/api/v1/s3_upload_info")
-		fmt.Println(string(bodyBytes))
-
-		fileBody, _ := ioutil.ReadFile(file)
-
-		var s3InfoResponse *S3InfoResponse
-		_ = json.Unmarshal(bodyBytes, &s3InfoResponse)
-
-		httpClient := http.Client{}
-		fmt.Println("POSTing to url: ", s3InfoResponse.Url)
-
-		form := url.Values{}
-		form.Add("key", s3InfoResponse.Fields.Key)
-		form.Add("success_action_status", s3InfoResponse.Fields.SuccessActionStatus)
-		form.Add("acl", s3InfoResponse.Fields.Acl)
-		form.Add("policy", s3InfoResponse.Fields.Policy)
-		form.Add("content-type", a.mimeType(file))
-		form.Add("x-amz-credential", s3InfoResponse.Fields.XAmzCredential)
-		form.Add("x-amz-algorithm", s3InfoResponse.Fields.XAmzAlgorithm)
-		form.Add("x-amz-date", s3InfoResponse.Fields.XAmzDate)
-		form.Add("x-amz-signature", s3InfoResponse.Fields.XAmzSignature)
-		form.Add("file", string(fileBody))
-
-		req, _ := http.NewRequest("POST", s3InfoResponse.Url, strings.NewReader(form.Encode()))
-		req.PostForm = form
-		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-		resp, rerr := httpClient.Do(req)
-		if rerr != nil {
-			fmt.Println("error doing request: ", rerr)
+func (a *AssetManager) PushLocalAssets(token string, deckConfig *DeckConfig) *DeckConfig {
+	localFiles := a.readFiles()
+	uploader := a.setupUploader(token)
+	for _, fileName := range localFiles {
+		var found bool
+		for _, asset := range deckConfig.Assets {
+			if asset.Filename == fileName {
+				// asset is both local and remote
+				// TODO handle if asset has changed?
+				found = true
+			}
 		}
 
-		defer resp.Body.Close()
-
-		fmt.Println(resp.Status)
-		bodyBytes, _ = ioutil.ReadAll(resp.Body)
-		fmt.Println(string(bodyBytes))
-
-		// put it there
-		// call ultradeck backend to say we put it there
+		if !found {
+			fmt.Println("Uploading ", fileName)
+			asset := a.uploadFile(fileName, uploader)
+			deckConfig.Assets = append(deckConfig.Assets, asset)
+		}
 	}
+	return deckConfig
+}
+
+func (a *AssetManager) PullRemoteAssets(deckConfig *DeckConfig) {
+	localFiles := a.readFiles()
+	for _, asset := range deckConfig.Assets {
+		var found bool
+		for _, fileName := range localFiles {
+			if asset.Filename == fileName {
+				// asset is both local and remote
+				// TODO handle if asset has changed?
+				found = true
+			}
+		}
+
+		if !found {
+			fmt.Println("Downloading ", asset.Filename)
+			a.downloadFile(asset)
+		}
+	}
+}
+
+func (a *AssetManager) setupUploader(token string) *s3manager.Uploader {
+	httpClient := NewHttpClient(token)
+	jsonData := httpClient.GetRequest("/api/v1/auth/aws_creds")
+	awsCreds := &AwsCreds{}
+	json.Unmarshal(jsonData, awsCreds)
+
+	sess := session.Must(session.NewSession(&aws.Config{
+		Region:      aws.String(endpoints.UsEast1RegionID),
+		Credentials: credentials.NewStaticCredentials(awsCreds.AccessKeyID, awsCreds.SecretAccessKey, awsCreds.SessionToken),
+	}))
+	return s3manager.NewUploader(sess)
+}
+
+func (a *AssetManager) downloadFile(asset *Asset) {
+	fmt.Printf("Getting %s\n", asset.URL)
+	resp, err := http.Get(asset.URL)
+	if err != nil {
+		fmt.Println("Error downloading asset: ", err)
+		return
+	}
+
+	body, _ := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+
+	if err := ioutil.WriteFile(asset.Filename, body, 0644); err != nil {
+		fmt.Println("Couldn't write file "+asset.Filename, err)
+	}
+}
+
+func (a *AssetManager) uploadFile(fileName string, uploader *s3manager.Uploader) *Asset {
+	keyName := fmt.Sprintf("/uploads/%s/%s", uuid.NewV4(), fileName)
+
+	file, err := os.Open(fileName)
+	if err != nil {
+		fmt.Printf("err opening file: %s", err)
+	}
+	defer file.Close()
+
+	fileInfo, _ := file.Stat()
+	var size int64 = fileInfo.Size()
+	buffer := make([]byte, size)
+	file.Read(buffer)
+	fileBytes := bytes.NewReader(buffer)
+
+	bucketName := "ultradeck-assets-dev"
+	acl := "public-read"
+	mimeType := a.mimeType(fileName)
+
+	upParams := &s3manager.UploadInput{
+		Bucket:      &bucketName,
+		Key:         &keyName,
+		Body:        fileBytes,
+		ACL:         &acl,
+		ContentType: &mimeType,
+	}
+
+	result, err := uploader.Upload(upParams)
+	if err != nil {
+		fmt.Println("error uploading file: ", err)
+	}
+
+	asset := &Asset{Filename: fileName, URL: result.Location}
+	return asset
 }
 
 func (a *AssetManager) readFiles() []string {

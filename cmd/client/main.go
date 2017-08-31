@@ -61,8 +61,6 @@ func main() {
 	// check if logged in. internal for testing
 	case "upgrade":
 		c.authorizedCommand(c.upgradeToPaid)
-	case "assets":
-		c.authorizedCommand(c.assets)
 	}
 }
 
@@ -161,8 +159,14 @@ func (c *Client) pull(resp *client.AuthCheckResponse) {
 
 		// date on server must be equal to or greater than date on client
 		if c.dateCompare(serverDeckConfig.UpdatedAt, clientDeckConfig.UpdatedAt) >= 0 {
-			fmt.Println("Pulling changes from ultradeck.co")
+			fmt.Println("Pulling changes from ultradeck.co...")
 			deckConfigManager.Write(jsonData)
+
+			// pull remote assets as well
+			fmt.Println("Syncing assets...")
+			assetManager := client.AssetManager{}
+			assetManager.PullRemoteAssets(serverDeckConfig)
+			fmt.Println("Done!")
 		} else {
 			fmt.Println("It looks like you might have local changes that are not on the server!")
 			fmt.Println("Did you make changes to your deck elsewhere, or on ultradeck.co?")
@@ -183,24 +187,24 @@ func (c *Client) push(resp *client.AuthCheckResponse) {
 		return
 	}
 
+	fmt.Println("Pushing local changes to ultradeck.co...")
+
 	httpClient := client.NewHttpClient(resp.Token)
 
+	// push local assets
+	assetManager := client.AssetManager{}
+	deckConfig := assetManager.PushLocalAssets(resp.Token, deckConfigManager.ReadFile())
+
 	url := fmt.Sprintf("api/v1/decks/%d", deckConfigManager.GetDeckID())
-	jsonData := httpClient.PutRequest(url, deckConfigManager.PrepareJSON())
+	jsonData := httpClient.PutRequest(url, deckConfigManager.PrepareJSON(deckConfig))
 
 	if httpClient.Response.StatusCode == 200 {
-		fmt.Println("Writing .ud.json")
 		deckConfigManager.Write(jsonData)
+		fmt.Println("Done!")
 	} else {
 		fmt.Println("Something went wrong with the request:")
 		fmt.Println(string(jsonData))
 	}
-}
-
-func (c *Client) assets(resp *client.AuthCheckResponse) {
-	fmt.Println("Syncing assets")
-	assetManager := &client.AssetManager{}
-	assetManager.SyncAssets(resp.Token)
 }
 
 func (c *Client) authorizedCommand(cmd func(resp *client.AuthCheckResponse)) {
