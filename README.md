@@ -56,4 +56,10 @@ If pulling
 # Aug 31
 
 * Separated out pulling remote assets and pushing local assets.  I don't see a situation where these should be run together with a single command.
-*
+
+# Sep 1
+
+how do I definitively delete an asset?
+
+if pushing and the remote asset is there, but the local asset is not there, then prompt the user
+if pulling and the remote asset is not there, but the local asset is there, then do nothing.

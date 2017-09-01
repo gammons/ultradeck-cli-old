@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -46,6 +47,25 @@ func (a *AssetManager) PushLocalAssets(token string, deckConfig *DeckConfig) *De
 			deckConfig.Assets = append(deckConfig.Assets, asset)
 		}
 	}
+
+	// handle the case where there is a remote asset that is not local
+	for i, asset := range deckConfig.Assets {
+		var found bool
+		for _, fileName := range localFiles {
+			if asset.Filename == fileName {
+				found = true
+			}
+		}
+		if !found {
+			fmt.Printf("The file %s exists on app.ultradeck.co, but not locally.  Do you want to delete it from your deck? (y/n) ", asset.Filename)
+			reader := bufio.NewReader(os.Stdin)
+			name, _ := reader.ReadString('\n')
+			if name == "y\n" {
+				deckConfig.Assets = append(deckConfig.Assets[:i], deckConfig.Assets[i+1:]...)
+			}
+
+		}
+	}
 	return deckConfig
 }
 
@@ -82,7 +102,6 @@ func (a *AssetManager) setupUploader(token string) *s3manager.Uploader {
 }
 
 func (a *AssetManager) downloadFile(asset *Asset) {
-	fmt.Printf("Getting %s\n", asset.URL)
 	resp, err := http.Get(asset.URL)
 	if err != nil {
 		fmt.Println("Error downloading asset: ", err)

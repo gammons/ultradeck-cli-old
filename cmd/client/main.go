@@ -104,8 +104,8 @@ type CreateDeck struct {
 }
 
 func (c *Client) create(resp *client.AuthCheckResponse) {
-	reader := bufio.NewReader(os.Stdin)
 	fmt.Println("What is the name of your deck?")
+	reader := bufio.NewReader(os.Stdin)
 	name, _ := reader.ReadString('\n')
 
 	httpClient := client.NewHttpClient(resp.Token)
