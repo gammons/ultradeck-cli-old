@@ -78,7 +78,7 @@ func (d *DeckConfigManager) ReadFile() *DeckConfig {
 }
 
 func (d *DeckConfigManager) PrepareJSON(deckConfig *DeckConfig) []byte {
-	deckConfig.Slides = d.ParseMarkdown()
+	deckConfig.Slides = d.ParseMarkdown(deckConfig)
 
 	deck := &Deck{Config: deckConfig}
 
@@ -92,7 +92,7 @@ func (d *DeckConfigManager) GetDeckID() int {
 	return config.ID
 }
 
-func (d *DeckConfigManager) ParseMarkdown() []*Slide {
+func (d *DeckConfigManager) ParseMarkdown(deckConfig *DeckConfig) []*Slide {
 	markdown, err := ioutil.ReadFile("deck.md")
 	if err != nil {
 		log.Println("error reading deck config file: ", err)
@@ -102,7 +102,23 @@ func (d *DeckConfigManager) ParseMarkdown() []*Slide {
 	var slides []*Slide
 
 	for i, markdown := range splitted {
-		slides = append(slides, &Slide{Position: (i + 1), Markdown: markdown})
+		// attempt to find the previous slide from the deckConfig
+		var previousSlide *Slide
+
+		for i := range deckConfig.Slides {
+			if deckConfig.Slides[i].Markdown == markdown {
+				previousSlide = deckConfig.Slides[i]
+			}
+		}
+
+		newSlide := &Slide{Position: (i + 1), Markdown: markdown}
+
+		if previousSlide != nil {
+			newSlide.PresenterNotes = previousSlide.PresenterNotes
+			newSlide.ColorVariation = previousSlide.ColorVariation
+		}
+
+		slides = append(slides, newSlide)
 	}
 	return slides
 }
