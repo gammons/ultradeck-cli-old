@@ -6,11 +6,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/gammons/ultradeck-cli/client"
 	"github.com/gammons/ultradeck-cli/ultradeck"
 	"github.com/skratchdot/open-golang/open"
@@ -53,6 +55,7 @@ func main() {
 	// watch a directory and auto-make changes on ultradeck's server
 	// uses websocket connection and other cool shit to pull this off
 	case "watch":
+		c.authorizedCommand(c.watch)
 
 	// check if logged in. internal for testing
 	case "check":
@@ -226,6 +229,40 @@ func (c *Client) authorizedCommand(cmd func(resp *client.AuthCheckResponse)) {
 		fmt.Println("\nNo auth config file found!")
 		fmt.Println("Please run 'ultradeck auth' to log in.")
 	}
+}
+
+func (c *Client) watch(resp *client.AuthCheckResponse) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer watcher.Close()
+
+	fmt.Println("Watching directory for changes...")
+
+	done := make(chan bool)
+	go func() {
+		for {
+			select {
+			case event := <-watcher.Events:
+				if event.Name == ".ud.json" {
+					continue
+				}
+				if event.Op == fsnotify.Write || event.Op == fsnotify.Create || event.Op == fsnotify.Remove {
+					c.push(resp)
+				}
+
+			case err := <-watcher.Errors:
+				log.Println("error:", err)
+			}
+		}
+	}()
+
+	err = watcher.Add(".")
+	if err != nil {
+		log.Fatal(err)
+	}
+	<-done
 }
 
 func (c *Client) dateCompare(d1 string, d2 string) int {

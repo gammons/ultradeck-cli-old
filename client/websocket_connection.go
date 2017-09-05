@@ -60,7 +60,6 @@ func (c *WebsocketConnection) DoAuth(processMsg func(req *ultradeck.Request)) {
 
 	req := &ultradeck.Request{Request: ultradeck.AuthRequest, Data: auth}
 	authMsg, _ := json.Marshal(req)
-	log.Printf("authMsg = %s", auth)
 
 	err := c.Conn.WriteMessage(websocket.TextMessage, []byte(authMsg))
 	if err != nil {
