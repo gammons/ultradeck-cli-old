@@ -58,7 +58,7 @@ func (c *WebsocketConnection) DoAuth(processMsg func(req *ultradeck.Request)) {
 	auth["token"] = uuid.NewV4()
 	auth["tokenType"] = "intermediate"
 
-	req := &ultradeck.Request{Request: ultradeck.AuthRequest, Data: auth}
+	req := &ultradeck.Request{Request: ultradeck.StartAuthRequest, Data: auth}
 	authMsg, _ := json.Marshal(req)
 
 	err := c.Conn.WriteMessage(websocket.TextMessage, []byte(authMsg))
