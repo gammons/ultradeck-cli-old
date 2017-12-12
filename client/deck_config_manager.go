@@ -2,6 +2,7 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -13,28 +14,26 @@ type Deck struct {
 }
 
 type DeckConfig struct {
-	ID           int      `json:"id"`
-	Title        string   `json:"title"`
-	Description  string   `json:"description"`
-	Slug         string   `json:"slug"`
-	IsPublic     bool     `json:"is_public"`
-	ThemeID      int      `json:"theme_id"`
-	ThemeVersion int      `json:"theme_version"`
-	UpdatedAt    string   `json:"updated_at"`
-	Slides       []*Slide `json:"slides_attributes"`
-	Assets       []*Asset `json:"assets_attributes"`
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Slug        string   `json:"slug"`
+	IsPublic    bool     `json:"is_public"`
+	ThemeID     string   `json:"theme_id"`
+	UpdatedAt   string   `json:"updated_at"`
+	Slides      []*Slide `json:"slides_attributes"`
+	Assets      []*Asset `json:"assets_attributes"`
 }
 
 type Slide struct {
-	ID             int    `json:"-"`
-	Position       int    `json:"position"`
+	ID             string `json:"-"`
 	Markdown       string `json:"markdown"`
 	PresenterNotes string `json:"presenter_notes"`
 	ColorVariation int    `json:"color_variation"`
 }
 
 type Asset struct {
-	ID        int    `json:"-"`
+	ID        string `json:"-"`
 	Filename  string `json:"filename"`
 	URL       string `json:"url"`
 	UpdatedAt string `json:"updated_at"`
@@ -44,14 +43,17 @@ type DeckConfigManager struct{}
 
 func (d *DeckConfigManager) Write(jsonData []byte) {
 	var deckConfig *DeckConfig
+	fmt.Println("About to show jsonData")
+	fmt.Println(string(jsonData[:]))
 	if err := json.Unmarshal(jsonData, &deckConfig); err != nil {
-		log.Println("Error writing deck config ", err)
+		log.Println("Error writing deck", err)
 	}
 
 	d.WriteConfig(deckConfig)
 }
 
 func (d *DeckConfigManager) WriteConfig(deckConfig *DeckConfig) {
+	log.Println(deckConfig)
 	marshalledData, _ := json.Marshal(deckConfig)
 	if err := ioutil.WriteFile(".ud.json", marshalledData, 0644); err != nil {
 		log.Println("Error writing deck config: ", err)
@@ -87,7 +89,7 @@ func (d *DeckConfigManager) PrepareJSON(deckConfig *DeckConfig) []byte {
 	return j
 }
 
-func (d *DeckConfigManager) GetDeckID() int {
+func (d *DeckConfigManager) GetDeckID() string {
 	config := d.ReadFile()
 	return config.ID
 }
@@ -101,7 +103,7 @@ func (d *DeckConfigManager) ParseMarkdown(deckConfig *DeckConfig) []*Slide {
 	splitted := strings.Split(string(markdown), "---\n")
 	var slides []*Slide
 
-	for i, markdown := range splitted {
+	for _, markdown := range splitted {
 		// attempt to find the previous slide from the deckConfig
 		var previousSlide *Slide
 
@@ -111,7 +113,7 @@ func (d *DeckConfigManager) ParseMarkdown(deckConfig *DeckConfig) []*Slide {
 			}
 		}
 
-		newSlide := &Slide{Position: (i + 1), Markdown: markdown}
+		newSlide := &Slide{Markdown: markdown}
 
 		if previousSlide != nil {
 			newSlide.PresenterNotes = previousSlide.PresenterNotes
