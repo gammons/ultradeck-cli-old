@@ -117,7 +117,8 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 	jsonData := httpClient.PostRequest("api/v1/decks", j)
 
 	if httpClient.Response.StatusCode == 200 {
-		fmt.Println("Writing .ud.json")
+		fmt.Println("Writing .ud.jsonNNNN")
+		fmt.Println(string(jsonData[:]))
 
 		deckConfigManager := &client.DeckConfigManager{}
 		deckConfigManager.Write(jsonData)
@@ -144,7 +145,7 @@ func (c *Client) pull(resp *client.AuthCheckResponse) {
 
 	if !deckConfigManager.FileExists() {
 		fmt.Println("Could not find deck config!")
-		fmt.Println("Did you run 'ultradeck create' or 'ultradeck init' yet?")
+		fmt.Println("Did you run 'ultradeck create' yet?")
 		return
 	}
 
@@ -186,7 +187,7 @@ func (c *Client) push(resp *client.AuthCheckResponse) {
 
 	if !deckConfigManager.FileExists() {
 		fmt.Println("Could not find deck config!")
-		fmt.Println("Did you run 'ultradeck create' or 'ultradeck init' yet?")
+		fmt.Println("Did you run 'ultradeck create' yet?")
 		return
 	}
 
