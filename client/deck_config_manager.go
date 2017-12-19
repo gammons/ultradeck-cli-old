@@ -2,7 +2,6 @@ package client
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -43,8 +42,6 @@ type DeckConfigManager struct{}
 
 func (d *DeckConfigManager) Write(jsonData []byte) {
 	var deckConfig *DeckConfig
-	fmt.Println("About to show jsonData")
-	fmt.Println(string(jsonData[:]))
 	if err := json.Unmarshal(jsonData, &deckConfig); err != nil {
 		log.Println("Error writing deck", err)
 	}

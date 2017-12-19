@@ -117,7 +117,6 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 	jsonData := httpClient.PostRequest("api/v1/decks", j)
 
 	if httpClient.Response.StatusCode == 200 {
-		fmt.Println("Writing .ud.jsonNNNN")
 		fmt.Println(string(jsonData[:]))
 
 		deckConfigManager := &client.DeckConfigManager{}
