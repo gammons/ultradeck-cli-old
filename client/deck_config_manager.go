@@ -27,6 +27,7 @@ type DeckConfig struct {
 
 type Slide struct {
 	ID             int    `json:"id"`
+	Position       int    `json:"position"`
 	Markdown       string `json:"markdown"`
 	PresenterNotes string `json:"presenter_notes"`
 	ColorVariation int    `json:"color_variation"`
@@ -39,8 +40,18 @@ type Asset struct {
 	UpdatedAt string `json:"updated_at"`
 }
 
-type DeckConfigManager struct{}
+type DeckConfigManager struct {
+	DeckConfig *DeckConfig
+}
 
+func NewDeckConfigManager() *DeckConfigManager {
+	manager := &DeckConfigManager{}
+	manager.ReadConfig()
+	return manager
+}
+
+// Write JSON coming back from backend.
+// Used in creating a new deck and writing .ud.json for the first time.
 func (d *DeckConfigManager) Write(jsonData []byte) {
 	var deckConfig *DeckConfig
 	fmt.Println("About to show jsonData")
@@ -49,20 +60,22 @@ func (d *DeckConfigManager) Write(jsonData []byte) {
 		log.Println("Error writing deck", err)
 	}
 
-	d.WriteConfig(deckConfig)
+	d.DeckConfig = deckConfig
+	d.WriteConfig()
 }
 
-func (d *DeckConfigManager) WriteConfig(deckConfig *DeckConfig) {
-	log.Println(deckConfig)
-	marshalledData, _ := json.Marshal(deckConfig)
+// lower-level function to write the DeckConfig to .ud.json
+func (d *DeckConfigManager) WriteConfig() {
+	marshalledData, _ := json.Marshal(d.DeckConfig)
 	if err := ioutil.WriteFile(".ud.json", marshalledData, 0644); err != nil {
 		log.Println("Error writing deck config: ", err)
 	}
 }
 
-func (d *DeckConfigManager) ReadFile() *DeckConfig {
+// read .ud.json and store data in DeckConfig struct
+func (d *DeckConfigManager) ReadConfig() {
 	if !d.FileExists() {
-		return nil
+		return
 	}
 
 	data, err := ioutil.ReadFile(".ud.json")
@@ -76,14 +89,16 @@ func (d *DeckConfigManager) ReadFile() *DeckConfig {
 		log.Println("error reading deck config file: ", err)
 	}
 
-	return deckConfig
+	d.DeckConfig = deckConfig
 }
 
-func (d *DeckConfigManager) PrepareJSONForUpload(deckConfig *DeckConfig) []byte {
-	deckConfig.Slides = d.ParseMarkdown(deckConfig)
-	deckConfig.UpdatedAt = ""
+// prepares what's stored in deckConfig to be uploaded to server
+func (d *DeckConfigManager) PrepareJSONForUpload() []byte {
+	d.ReadConfig()
 
-	deck := &Deck{Config: deckConfig}
+	d.DeckConfig.Slides = d.ParseDeckMDFile()
+
+	deck := &Deck{Config: d.DeckConfig}
 
 	j, _ := json.Marshal(&deck)
 
@@ -91,30 +106,36 @@ func (d *DeckConfigManager) PrepareJSONForUpload(deckConfig *DeckConfig) []byte 
 }
 
 func (d *DeckConfigManager) GetDeckID() int {
-	config := d.ReadFile()
-	return config.ID
+	d.ReadConfig()
+	return d.DeckConfig.ID
 }
 
-func (d *DeckConfigManager) ParseMarkdown(deckConfig *DeckConfig) []*Slide {
+// reads the markdown from deck.md file and returns a slide array of slides
+func (d *DeckConfigManager) ParseDeckMDFile() []*Slide {
 	markdown, err := ioutil.ReadFile("deck.md")
 	if err != nil {
-		log.Println("error reading deck config file: ", err)
+		log.Println("I'm expecting your markdown file to be named deck.md, but I couldn't read it!: ", err)
 	}
+	return d.ParseMarkdown(string(markdown[:]))
+}
 
+func (d *DeckConfigManager) ParseMarkdown(markdown string) []*Slide {
 	splitted := strings.Split(string(markdown), "---\n")
 	var slides []*Slide
 
-	for _, markdown := range splitted {
+	for i, markdown := range splitted {
 		// attempt to find the previous slide from the deckConfig
 		var previousSlide *Slide
 
-		for i := range deckConfig.Slides {
-			if deckConfig.Slides[i].Markdown == markdown {
-				previousSlide = deckConfig.Slides[i]
+		if d.DeckConfig != nil {
+			for i := range d.DeckConfig.Slides {
+				if d.DeckConfig.Slides[i].Markdown == markdown {
+					previousSlide = d.DeckConfig.Slides[i]
+				}
 			}
 		}
 
-		newSlide := &Slide{Markdown: markdown}
+		newSlide := &Slide{Position: (i + 1), Markdown: markdown}
 
 		if previousSlide != nil {
 			newSlide.PresenterNotes = previousSlide.PresenterNotes
