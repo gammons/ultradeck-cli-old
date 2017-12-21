@@ -36,6 +36,8 @@ func (h *HttpClient) PerformRequest(path string, verb string, body []byte) []byt
 	url := HttpUrl + path
 	client := &http.Client{}
 	req, _ := http.NewRequest(verb, url, bytes.NewBuffer(body))
+	fmt.Println("Verb is ", verb)
+	fmt.Println("url is ", url)
 	authHeader := fmt.Sprintf("Bearer %s", h.Token)
 
 	req.Header.Set("Authorization", authHeader)

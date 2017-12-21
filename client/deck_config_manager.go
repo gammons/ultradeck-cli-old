@@ -14,26 +14,26 @@ type Deck struct {
 }
 
 type DeckConfig struct {
-	ID          string   `json:"id"`
+	ID          int      `json:"id"`
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Slug        string   `json:"slug"`
 	IsPublic    bool     `json:"is_public"`
-	ThemeID     string   `json:"theme_id"`
+	ThemeID     int      `json:"theme_id"`
 	UpdatedAt   string   `json:"updated_at"`
 	Slides      []*Slide `json:"slides_attributes"`
 	Assets      []*Asset `json:"assets_attributes"`
 }
 
 type Slide struct {
-	ID             string `json:"-"`
+	ID             int    `json:"id"`
 	Markdown       string `json:"markdown"`
 	PresenterNotes string `json:"presenter_notes"`
 	ColorVariation int    `json:"color_variation"`
 }
 
 type Asset struct {
-	ID        string `json:"-"`
+	ID        int    `json:"id"`
 	Filename  string `json:"filename"`
 	URL       string `json:"url"`
 	UpdatedAt string `json:"updated_at"`
@@ -79,8 +79,9 @@ func (d *DeckConfigManager) ReadFile() *DeckConfig {
 	return deckConfig
 }
 
-func (d *DeckConfigManager) PrepareJSON(deckConfig *DeckConfig) []byte {
+func (d *DeckConfigManager) PrepareJSONForUpload(deckConfig *DeckConfig) []byte {
 	deckConfig.Slides = d.ParseMarkdown(deckConfig)
+	deckConfig.UpdatedAt = ""
 
 	deck := &Deck{Config: deckConfig}
 
@@ -89,7 +90,7 @@ func (d *DeckConfigManager) PrepareJSON(deckConfig *DeckConfig) []byte {
 	return j
 }
 
-func (d *DeckConfigManager) GetDeckID() string {
+func (d *DeckConfigManager) GetDeckID() int {
 	config := d.ReadFile()
 	return config.ID
 }

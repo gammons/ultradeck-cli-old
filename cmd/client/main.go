@@ -200,7 +200,7 @@ func (c *Client) push(resp *client.AuthCheckResponse) {
 	deckConfig := assetManager.PushLocalAssets(resp.Token, deckConfigManager.ReadFile())
 
 	url := fmt.Sprintf("api/v1/decks/%d", deckConfigManager.GetDeckID())
-	jsonData := httpClient.PutRequest(url, deckConfigManager.PrepareJSON(deckConfig))
+	jsonData := httpClient.PutRequest(url, deckConfigManager.PrepareJSONForUpload(deckConfig))
 
 	if httpClient.Response.StatusCode == 200 {
 		deckConfigManager.Write(jsonData)
