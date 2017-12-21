@@ -22,11 +22,96 @@ func TestParseMarkdown(t *testing.T) {
 	slides := manager.ParseMarkdown(markdown)
 
 	assert.Equal(2, len(slides))
-	assert.Equal("\n# Here is slide 1\n", slides[0].Markdown)
-	assert.Equal("# here is slide 2\n\n* with\n* a\n* list\n", slides[1].Markdown)
+	assert.Equal("# Here is slide 1", slides[0].Markdown)
+	assert.Equal("# here is slide 2\n\n* with\n* a\n* list", slides[1].Markdown)
 
 	assert.Equal(1, slides[0].Position)
 	assert.Equal(2, slides[1].Position)
 
 	assert.Equal(0, slides[0].ID)
+}
+
+func TestParseMarkdownAddASlideAtEnd(t *testing.T) {
+	assert := assert.New(t)
+
+	markdown := `
+# Here is yet another great slide
+---
+# And another one
+`
+	manager := &DeckConfigManager{}
+	config := &DeckConfig{
+		ID:          1,
+		Title:       "Testing",
+		Description: "Test",
+	}
+
+	slide := &Slide{
+		ID:             1,
+		Position:       1,
+		Markdown:       "# Here is yet another great slide",
+		ColorVariation: 1,
+	}
+
+	config.Slides = append(config.Slides, slide)
+
+	manager.DeckConfig = config
+
+	slides := manager.ParseMarkdown(markdown)
+
+	assert.Equal(2, len(slides))
+	assert.Equal("# Here is yet another great slide", slides[0].Markdown)
+	assert.Equal("# And another one", slides[1].Markdown)
+
+	assert.Equal(1, slides[0].ID)
+	assert.Equal(0, slides[1].ID)
+}
+
+func TestParseMarkdownAddASlideAtMiddle(t *testing.T) {
+	assert := assert.New(t)
+
+	markdown := `
+# Here is existing slide 1
+---
+# Here is the new slide
+---
+# Here is existing slide 2
+`
+	manager := &DeckConfigManager{}
+	config := &DeckConfig{
+		ID:          1,
+		Title:       "Testing",
+		Description: "Test",
+	}
+
+	slide1 := &Slide{
+		ID:             1,
+		Position:       1,
+		Markdown:       "# Here is existing slide 1",
+		ColorVariation: 1,
+	}
+
+	slide2 := &Slide{
+		ID:             2,
+		Position:       2,
+		Markdown:       "# Here is existing slide 2",
+		ColorVariation: 1,
+	}
+
+	config.Slides = append(config.Slides, slide1)
+	config.Slides = append(config.Slides, slide2)
+
+	manager.DeckConfig = config
+	slides := manager.ParseMarkdown(markdown)
+
+	assert.Equal(3, len(slides))
+
+	assert.Equal("# Here is existing slide 1", slides[0].Markdown)
+	assert.Equal(1, slides[0].ID)
+
+	assert.Equal("# Here is the new slide", slides[1].Markdown)
+	assert.Equal(0, slides[1].ID)
+
+	assert.Equal("# Here is existing slide 2", slides[2].Markdown)
+	assert.Equal(2, slides[2].ID)
 }

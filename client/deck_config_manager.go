@@ -126,15 +126,16 @@ func (d *DeckConfigManager) ParseMarkdown(markdown string) []*Slide {
 
 		if d.DeckConfig != nil {
 			for i := range d.DeckConfig.Slides {
-				if d.DeckConfig.Slides[i].Markdown == markdown {
+				if d.DeckConfig.Slides[i].Markdown == strings.TrimSpace(markdown) {
 					previousSlide = d.DeckConfig.Slides[i]
 				}
 			}
 		}
 
-		newSlide := &Slide{Position: (i + 1), Markdown: markdown}
+		newSlide := &Slide{Position: (i + 1), Markdown: strings.TrimSpace(markdown)}
 
 		if previousSlide != nil {
+			newSlide.ID = previousSlide.ID
 			newSlide.PresenterNotes = previousSlide.PresenterNotes
 			newSlide.ColorVariation = previousSlide.ColorVariation
 		}
