@@ -141,6 +141,7 @@ func (c *Client) create(resp *client.AuthCheckResponse) {
 
 func (c *Client) pull(resp *client.AuthCheckResponse) {
 	deckConfigManager := &client.DeckConfigManager{}
+	deckConfigManager.ReadConfig()
 
 	if !deckConfigManager.FileExists() {
 		fmt.Println("Could not find deck config!")
@@ -158,10 +159,8 @@ func (c *Client) pull(resp *client.AuthCheckResponse) {
 		var serverDeckConfig *client.DeckConfig
 		_ = json.Unmarshal(jsonData, &serverDeckConfig)
 
-		clientDeckConfig := deckConfigManager.ReadFile()
-
 		// date on server must be equal to or greater than date on client
-		if c.dateCompare(serverDeckConfig.UpdatedAt, clientDeckConfig.UpdatedAt) >= 0 {
+		if c.dateCompare(serverDeckConfig.UpdatedAt, deckConfigManager.DeckConfig.UpdatedAt) >= 0 {
 			fmt.Println("Pulling changes from ultradeck.co...")
 			deckConfigManager.Write(jsonData)
 
@@ -183,6 +182,7 @@ func (c *Client) pull(resp *client.AuthCheckResponse) {
 
 func (c *Client) push(resp *client.AuthCheckResponse) {
 	deckConfigManager := &client.DeckConfigManager{}
+	deckConfigManager.ReadConfig()
 
 	if !deckConfigManager.FileExists() {
 		fmt.Println("Could not find deck config!")
@@ -196,10 +196,13 @@ func (c *Client) push(resp *client.AuthCheckResponse) {
 
 	// push local assets
 	assetManager := client.AssetManager{}
-	deckConfig := assetManager.PushLocalAssets(resp.Token, deckConfigManager.ReadFile())
+
+	// TODO:  really not sure I like this type of decorator pattern
+	// can I make it cleaner?
+	deckConfigManager.DeckConfig = assetManager.PushLocalAssets(resp.Token, deckConfigManager.DeckConfig)
 
 	url := fmt.Sprintf("api/v1/decks/%d", deckConfigManager.GetDeckID())
-	jsonData := httpClient.PutRequest(url, deckConfigManager.PrepareJSON(deckConfig))
+	jsonData := httpClient.PutRequest(url, deckConfigManager.PrepareJSONForUpload())
 
 	if httpClient.Response.StatusCode == 200 {
 		deckConfigManager.Write(jsonData)
