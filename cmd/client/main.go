@@ -57,13 +57,14 @@ func main() {
 	case "watch":
 		c.authorizedCommand(c.watch)
 
-	// check if logged in. internal for testing
+	// upgrade to paid
+	case "upgrade":
+		c.authorizedCommand(c.upgradeToPaid)
+
+	// internal for testing
 	case "check":
 		c.authorizedCommand(c.checkAuth)
 
-	// check if logged in. internal for testing
-	case "upgrade":
-		c.authorizedCommand(c.upgradeToPaid)
 	}
 }
 
@@ -248,7 +249,8 @@ func (c *Client) watch(resp *client.AuthCheckResponse) {
 		for {
 			select {
 			case event := <-watcher.Events:
-				if event.Name == ".ud.json" {
+				fmt.Println("event:", event)
+				if event.Name == "./.ud.json" {
 					continue
 				}
 				if event.Op == fsnotify.Write || event.Op == fsnotify.Create || event.Op == fsnotify.Remove {
