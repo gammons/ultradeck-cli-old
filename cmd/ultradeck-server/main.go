@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var addr = flag.String("addr", "localhost:8080", "http service address")
+var addr = flag.String("addr", "0.0.0.0:8080", "http service address")
 var redisAddr = flag.String("redisAddr", "localhost:6379", "redis address")
 var ultradeckBackendAddr = flag.String("ultradeckBackendAddr", "localhost:3000", "ultradeck backend address")
 
@@ -57,13 +57,14 @@ result from rails app:
 
 func main() {
 	log.SetFlags(0)
+	flag.Parse()
 
 	server := &Server{}
 	server.Connections = make(map[string][]*websocket.Conn)
 	server.SetupRedisListener()
 
 	http.HandleFunc("/", server.Serve)
-	log.Println("Listening ln localhost:8080")
+	log.Println("Listening at ", *addr)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
 
